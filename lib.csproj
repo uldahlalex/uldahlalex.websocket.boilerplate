@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+
+    <!-- NuGet package metadata -->
+    <PackageId>uldahlalex.websocket.boilerplate</PackageId>
+    <Version>1.2.0</Version>
+    <Authors>Alex Uldahl Pedersen</Authors>
+    <Company>Uldahl Technologies</Company>
+    <Description>All the stuff we don't wanna write twice.</Description>
+    <PackageId>uldahlalex.websocket.boilerplate</PackageId>
+
+    <!-- NuGet options -->
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/uldahlalex/websocketboilerplate</RepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fleck" Version="1.2.0" />
+  </ItemGroup>
+
+</Project>
