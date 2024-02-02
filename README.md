@@ -32,7 +32,7 @@ server.Start(socket =>
         try
         {
             //STEP 2: ADD THIS LINE TO INVOKE THE EVENT HANDLER
-            app.InvokeClientEventHandler(services, socket, message);
+            await app.InvokeClientEventHandler(services, socket, message);
         }
         catch (Exception e)
         {
