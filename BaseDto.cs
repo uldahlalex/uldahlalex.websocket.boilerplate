@@ -1,6 +1,6 @@
 namespace lib;
 
-public class BaseDto 
+public class BaseDto
 {
     public BaseDto()
     {
@@ -12,5 +12,5 @@ public class BaseDto
             this.eventType = eventType;
     }
 
-    public string eventType { get; set; } 
+    public string eventType { get; set; }
 }

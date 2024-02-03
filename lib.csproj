@@ -1,34 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
 
 
-    <!-- NuGet package metadata -->
-    <PackageId>uldahlalex.websocket.boilerplate</PackageId>
-    <Version>1.4.1</Version>
-    <Authors>Alex Uldahl Pedersen</Authors>
-    <Company>Uldahl Technologies</Company>
-    <Description>All the stuff we don't wanna write twice.</Description>
-    <PackageId>uldahlalex.websocket.boilerplate</PackageId>
+        <!-- NuGet package metadata -->
+        <PackageId>uldahlalex.websocket.boilerplate</PackageId>
+        <Version>1.6.0</Version>
+        <Authors>Alex Uldahl Pedersen</Authors>
+        <Company>Uldahl Technologies</Company>
+        <Description>All the stuff we don't wanna write twice.</Description>
+        <PackageId>uldahlalex.websocket.boilerplate</PackageId>
 
-    <!-- NuGet options -->
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/uldahlalex/uldahlalex.websocket.boilerplate</RepositoryUrl>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-  </PropertyGroup>
+        <!-- NuGet options -->
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <RepositoryUrl>https://github.com/uldahlalex/uldahlalex.websocket.boilerplate</RepositoryUrl>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Fleck" Version="1.2.0" />
-    <PackageReference Include="Websocket.Client" Version="5.0.0" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Fleck" Version="1.2.0"/>
+        <PackageReference Include="Websocket.Client" Version="5.0.0"/>
+    </ItemGroup>
 
 </Project>
