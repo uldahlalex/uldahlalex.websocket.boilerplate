@@ -27,12 +27,12 @@ server.Start(socket =>
 {
     socket.OnOpen = () => Console.WriteLine("Open!");
     socket.OnClose = () => Console.WriteLine("Close!");
-    socket.OnMessage = message =>
+    socket.OnMessage = async message =>
     {
         try
         {
             //STEP 2: ADD THIS LINE TO INVOKE THE EVENT HANDLER
-            app.InvokeClientEventHandler(services, socket, message);
+            await app.InvokeClientEventHandler(services, socket, message);
         }
         catch (Exception e)
         {
