@@ -27,7 +27,7 @@ server.Start(socket =>
 {
     socket.OnOpen = () => Console.WriteLine("Open!");
     socket.OnClose = () => Console.WriteLine("Close!");
-    socket.OnMessage = message =>
+    socket.OnMessage = async message =>
     {
         try
         {
