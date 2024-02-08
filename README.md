@@ -82,5 +82,15 @@ public class ValidateDataAnnotations : BaseEventFilter
     }
 }
 
+[ValidateDataAnnotations]
+public class ClientWantsToEnterRoom(
+    ChatRepository chatRepository) : BaseEventHandler<ClientWantsToEnterRoomDto>
+{
+    public override Task Handle(ClientWantsToEnterRoomDto dto, IWebSocketConnection socket)
+    {
+        //DTO will be validated and exception thrown if invalid at this point
+        throw new NotImplementedException();
+    }
+}
 ```
 
