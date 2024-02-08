@@ -63,6 +63,7 @@ public class ClientWantsToEcho : BaseEventHandler<ClientWantsToEchoDto>
 ```
 
 ## Usage event filter: Validate Data Annotations for DTO
+#### Don't forget to implement an exception handler to catch the ValidationException thrown by Validator.ValidateObject()
 ```csharp
 using System.ComponentModel.DataAnnotations;
 using Fleck;
