@@ -8,7 +8,7 @@ dotnet add package uldahlalex.websocket.boilerplate
 
 Link to Nuget gallery: https://www.nuget.org/packages/uldahlalex.websocket.boilerplate
 
-## Usage: Hello world with Fleck
+## Usage of event handler: Hello world (basic echo)
 
 ```csharp
 
@@ -56,6 +56,27 @@ public class ClientWantsToEcho : BaseEventHandler<ClientWantsToEchoDto>
     {
         // Step 5: profit
         socket.Send("hey");
+        return Task.CompletedTask;
+    }
+}
+
+```
+
+## Usage event filter: Validate Data Annotations for DTO
+```csharp
+using System.ComponentModel.DataAnnotations;
+using Fleck;
+using lib;
+
+namespace Api.ClientEventFilters;
+
+public class ValidateDataAnnotations : BaseEventFilter
+{
+    public override Task Handle<T>(IWebSocketConnection socket, T dto)
+    {
+        var validationContext = new ValidationContext(
+            dto ?? throw new ArgumentNullException(nameof(dto)));
+        Validator.ValidateObject(dto, validationContext, true);
         return Task.CompletedTask;
     }
 }
