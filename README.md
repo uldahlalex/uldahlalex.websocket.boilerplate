@@ -18,7 +18,7 @@ using lib;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// STEP 1: ADD THIS LINE
+// STEP 1: ADD THIS LINE TO FIND CLASSES EXTENDING BaseEventHandler<Dto>
 var services = builder.FindAndInjectClientEventHandlers(Assembly.GetExecutingAssembly());
 
 var app = builder.Build();
@@ -31,7 +31,7 @@ server.Start(socket =>
     {
         try
         {
-            //STEP 2: ADD THIS LINE TO INVOKE THE EVENT HANDLER
+            //STEP 2: ADD THIS LINE TO INVOKE THE EVENT HANDLER WHEN RECEIVING A MESSAGE
             await app.InvokeClientEventHandler(services, socket, message);
         }
         catch (Exception e)
@@ -48,10 +48,10 @@ public class ClientWantsToEchoDto : BaseDto
     public string message { get; set; }
 }
 
-//STEP 3: ADD EVENTS BY EXTENDING BaseEventHandler<T> WHERE T IS YOUR DEFINED DTO
+//STEP 3: ADD EVENTS BY EXTENDING BaseEventHandler<T> WHERE T IS YOUR DEFINED DTO EXTENDING BaseDto
 public class ClientWantsToEcho : BaseEventHandler<ClientWantsToEchoDto>
 {
-    //STEP 4: IMPLEMENT THE Handle(dto, socket) METHOD DEFINED BY BASEEVENTHANDLER
+    //STEP 4: IMPLEMENT THE Handle(dto, socket) METHOD DEFINED BY BaseEventHandler
     public override Task Handle(ClientWantsToEchoDto dto, IWebSocketConnection socket)
     {
         // Step 5: profit
@@ -62,8 +62,9 @@ public class ClientWantsToEcho : BaseEventHandler<ClientWantsToEchoDto>
 
 ```
 
-## Usage event filter: Validate Data Annotations for DTO
+## Usage event filter. Example: Validate Data Annotations for DTO
 #### Don't forget to implement an exception handler to catch the ValidationException thrown by Validator.ValidateObject()
+EventFilters simply run before the BaseEventHandler's "Handle()"
 ```csharp
 using System.ComponentModel.DataAnnotations;
 using Fleck;
@@ -71,6 +72,7 @@ using lib;
 
 namespace Api.ClientEventFilters;
 
+//Simply extend BaseEventFilter and override the Handle<T> method
 public class ValidateDataAnnotations : BaseEventFilter
 {
     public override Task Handle<T>(IWebSocketConnection socket, T dto)
@@ -81,16 +83,34 @@ public class ValidateDataAnnotations : BaseEventFilter
         return Task.CompletedTask;
     }
 }
-
+//Use the annotation by adding it to the event handler class
 [ValidateDataAnnotations]
 public class ClientWantsToEnterRoom(
     ChatRepository chatRepository) : BaseEventHandler<ClientWantsToEnterRoomDto>
 {
     public override Task Handle(ClientWantsToEnterRoomDto dto, IWebSocketConnection socket)
     {
-        //DTO will be validated and exception thrown if invalid at this point
         throw new NotImplementedException();
     }
 }
 ```
 
+# Basic usage of WebSocketTestClient
+```csharp
+[TestFixture]
+public class Tests
+{
+    [Test]
+    public async Task MyTest()
+    {
+        //Initialize the WebSocketTestClient and connect to the server (default URL = ws://localhost:8181)
+        var ws = await new WebSocketTestClient().ConnectAsync();
+        
+        //Send an object extending BaseDto to the server without asserting and waiting
+        await ws.DoAndAssert(new ClientWantsToEchoDto() {message = "hey"});
+   
+        //Send an object extending BaseDto to the server and wait for assertions to be true. If not, exception is thrown
+        await ws.DoAndAssert(new ClientWantsToEchoDto() { message = "hey"}, 
+            receivedMessages => receivedMessages.Count == 2);
+    }
+```
