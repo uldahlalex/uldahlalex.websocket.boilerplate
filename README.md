@@ -55,9 +55,17 @@ public class ClientWantsToEcho : BaseEventHandler<ClientWantsToEchoDto>
     public override Task Handle(ClientWantsToEchoDto dto, IWebSocketConnection socket)
     {
         // Step 5: profit
-        socket.Send("hey");
+        socket.Send(dto.message);
+        socket.SendDto(new ServerSendsEchoDto() { message = dto.message}) //or using the SendDto which enforces extensions of BaseDto
         return Task.CompletedTask;
+        
     }
+}
+
+public class ServerSendsEchoDto : BaseDto 
+{
+    public string message { get; set; }
+
 }
 
 ```

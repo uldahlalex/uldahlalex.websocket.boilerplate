@@ -80,4 +80,9 @@ public static class ExtensionMethods
             await clientEventServiceClass.InvokeHandle(message, ws);
         }
     }
+
+    public static void SendDto<T>(this IWebSocketConnection websocketConnection, T dto, bool enforceCamelCase = false) where T : BaseDto
+    {
+        websocketConnection.Send(JsonSerializer.Serialize(dto));
+    }
 }
