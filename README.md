@@ -32,7 +32,7 @@ server.Start(socket =>
         try
         {
             //STEP 2: ADD THIS LINE TO INVOKE THE EVENT HANDLER WHEN RECEIVING A MESSAGE
-            await app.InvokeClientEventHandler(services, socket, message);
+            await app.InvokeClientEventHandler(services, socket, message); //There is also an extension method for IApplicationBuilder so you don't have to use WebApplication type
         }
         catch (Exception e)
         {
