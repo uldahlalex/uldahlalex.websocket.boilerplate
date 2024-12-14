@@ -19,7 +19,7 @@ using lib;
 var builder = WebApplication.CreateBuilder(args);
 
 // STEP 1: ADD THIS LINE TO FIND CLASSES EXTENDING BaseEventHandler<Dto>
-var services = builder.FindAndInjectClientEventHandlers(Assembly.GetExecutingAssembly());
+var services = builder.FindAndInjectClientEventHandlers(Assembly.GetExecutingAssembly()); //There also exists an extension method for IServiceCollection and not just WebApplicationBuilder
 
 var app = builder.Build();
 var server = new WebSocketServer("ws://0.0.0.0:8181");
