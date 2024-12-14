@@ -4,7 +4,16 @@ using Fleck;
 
 namespace lib;
 
-public abstract class BaseEventHandler<T> where T : BaseDto
+public interface IBaseEventHandler<T> where T : BaseDto
+{
+    string eventType { get; }
+
+    Task InvokeHandle(string message, IWebSocketConnection socket);
+
+    Task Handle(T dto, IWebSocketConnection socket);
+}
+
+public abstract class BaseEventHandler<T> : IBaseEventHandler<T> where T : BaseDto
 {
     public string eventType => GetType().Name;
 

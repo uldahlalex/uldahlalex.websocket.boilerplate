@@ -29,10 +29,10 @@ public static class ExtensionMethods
         return clientEventHandlers;
     }
     
-    public static HashSet<Type> FindAndInjectClientEventHandlers(
+    public static IServiceCollection FindAndInjectClientEventHandlers(
         this IServiceCollection services,
         Assembly assemblyReference,
-        ServiceLifetime? lifetime = ServiceLifetime.Singleton)
+        ServiceLifetime? lifetime = ServiceLifetime.Scoped)
     {
         var clientEventHandlers = new HashSet<Type>();
         foreach (var type in assemblyReference.GetTypes())
@@ -42,12 +42,17 @@ public static class ExtensionMethods
             {
                 if (lifetime.Equals(ServiceLifetime.Singleton))
                     services.AddSingleton(type);
+                if(lifetime.Equals(ServiceLifetime.Transient))
+                    services.AddTransient(type);
                 else if (lifetime.Equals(ServiceLifetime.Scoped))
                     services.AddScoped(type);
                 clientEventHandlers.Add(type);
             }
 
-        return clientEventHandlers;
+        var eventHandlersService = new EventHandlersService() { EventHandlers = clientEventHandlers };
+        services.AddSingleton<IEventHandlersService>(eventHandlersService);
+
+        return services;
     }
 
 
@@ -104,7 +109,7 @@ public static class ExtensionMethods
         }
     }
     
-    public static async Task InvokeClientEventHandler(this IApplicationBuilder app, HashSet<Type> types,
+    public static async Task InvokeClientEventHandler(this IApplicationBuilder app, 
         IWebSocketConnection ws, string message, ServiceLifetime? lifetime = ServiceLifetime.Singleton)
     {
         var dto = JsonSerializer.Deserialize<BaseDto>(message, new JsonSerializerOptions
@@ -116,14 +121,14 @@ public static class ExtensionMethods
             ? dto.eventType.Substring(0, dto.eventType.Length - 3)
             : dto.eventType;
 
-        var handlerType = types.FirstOrDefault(t => t.Name.Equals(eventType, StringComparison.OrdinalIgnoreCase) ||
+        var eventHandlersService = app.ApplicationServices.GetRequiredService<IEventHandlersService>();
+        var handlerType = eventHandlersService.EventHandlers.FirstOrDefault(t => t.Name.Equals(eventType, StringComparison.OrdinalIgnoreCase) ||
                                                     t.Name.Equals(eventType + "Dto",
                                                         StringComparison.OrdinalIgnoreCase));
 
         if (handlerType == null)
         {
-            var dtoTypeName = dto.GetType().Name;
-            handlerType = types.FirstOrDefault(t =>
+            handlerType = eventHandlersService.EventHandlers.FirstOrDefault(t =>
                 t.BaseType != null &&
                 t.BaseType.IsGenericType &&
                 t.BaseType.GetGenericTypeDefinition() == typeof(BaseEventHandler<>) &&
