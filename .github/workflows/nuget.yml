@@ -2,6 +2,10 @@ name: Publish NuGet Package
 
 on:
   workflow_dispatch:
+  push:
+    branches: 
+      - main
+      - master
 
 jobs:
   build-and-publish:
@@ -17,16 +21,20 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore
-        working-directory: src
+        :
+          working-directory: src
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
-        working-directory: src
+        with:
+          working-directory: src
 
       - name: Pack
         run: dotnet pack --configuration Release --no-build --output nupkgs
-        working-directory: src
+        with:
+          working-directory: src
 
       - name: Publish to NuGet
         run: dotnet nuget push nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-        working-directory: src
+        with:
+          working-directory: src
