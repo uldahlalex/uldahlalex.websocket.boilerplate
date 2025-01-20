@@ -10,64 +10,84 @@ Link to Nuget gallery: https://www.nuget.org/packages/uldahlalex.websocket.boile
 
 ## Usage of event handler: Hello world (basic echo)
 
-```csharp
-//
-using System.Reflection;
+
+```cs
+// ./test/Example.cs
+
+﻿using System.Reflection;
 using Fleck;
-using lib;
+using WebSocketBoilerplate;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace test;
 
-// STEP 1: ADD THIS LINE TO FIND CLASSES EXTENDING BaseEventHandler<Dto>
-var services = builder.FindAndInjectClientEventHandlers(Assembly.GetExecutingAssembly()); //There also exists an extension method for IServiceCollection and not just WebApplicationBuilder
-
-var app = builder.Build();
-var server = new WebSocketServer("ws://0.0.0.0:8181");
-server.Start(socket =>
+public static class Example
 {
-    socket.OnOpen = () => Console.WriteLine("Open!");
-    socket.OnClose = () => Console.WriteLine("Close!");
-    socket.OnMessage = async message =>
+    public static void Main()
     {
-        try
-        {
-            //STEP 2: ADD THIS LINE TO INVOKE THE EVENT HANDLER WHEN RECEIVING A MESSAGE
-            await app.InvokeClientEventHandler(services, socket, message); //There is also an extension method for IApplicationBuilder so you don't have to use WebApplication type
-        }
-        catch (Exception e)
-        {
-            // trigger some global error handler to not ruin your life
-        }
+        var builder = WebApplication.CreateBuilder();
+        builder.CreateWebSocketApi();
 
-    };
-});
-Console.ReadLine();
+        var app = builder.Build();
+        
+        app.StartWebSocketApi();
+        
+        app.Run();
+    }
+    
+    public static WebApplicationBuilder CreateWebSocketApi(this WebApplicationBuilder builder)
+    {
+        builder.Services.InjectEventHandlers(Assembly.GetExecutingAssembly()); //Injects all event handler services
+        
+        return builder;
+    }
+    
+    public static WebApplication StartWebSocketApi(this WebApplication app)
+    {
+        var server = new WebSocketServer("ws://0.0.0.0:8181");
+        server.Start(socket =>
+        {
+            socket.OnOpen = () => Console.WriteLine("Open!");
+            socket.OnClose = () => Console.WriteLine("Close!");
+            socket.OnMessage = async message =>
+            {
+                try
+                {
+                    //STEP 2: ADD THIS LINE TO INVOKE THE EVENT HANDLER WHEN RECEIVING A MESSAGE
+                    await app.CallEventHandler(socket, message); 
+                }
+                catch (Exception e)
+                {
+                    // trigger some global error handler to not ruin your life
+                }
+
+            };
+        });
+        return app;
+    } 
+}
 
 public class ClientWantsToEchoDto : BaseDto
 {
     public string message { get; set; }
 }
 
-//STEP 3: ADD EVENTS BY EXTENDING BaseEventHandler<T> WHERE T IS YOUR DEFINED DTO EXTENDING BaseDto
-public class ClientWantsToEcho : BaseEventHandler<ClientWantsToEchoDto>
-{
-    //STEP 4: IMPLEMENT THE Handle(dto, socket) METHOD DEFINED BY BaseEventHandler
-    public override Task Handle(ClientWantsToEchoDto dto, IWebSocketConnection socket)
-    {
-        // Step 5: profit
-        socket.Send(dto.message);
-        socket.SendDto(new ServerSendsEchoDto() { message = dto.message}) //or using the SendDto which enforces extensions of BaseDto
-        return Task.CompletedTask;
-        
-    }
-}
-
-public class ServerSendsEchoDto : BaseDto 
+public class ServerSendsEchoDto : BaseDto
 {
     public string message { get; set; }
-
 }
 
+public class ClientWantsToEchoEventHandler : BaseEventHandler<ClientWantsToEchoDto>
+{
+    public override Task Handle(ClientWantsToEchoDto dto, IWebSocketConnection socket)
+    {
+        var echoDto = new ServerSendsEchoDto
+        {
+            message = dto.message
+        };
+        socket.SendDto(echoDto);
+        return Task.CompletedTask;
+    }
+}
 ```
 
 ## Usage event filter. Example: Validate Data Annotations for DTO
