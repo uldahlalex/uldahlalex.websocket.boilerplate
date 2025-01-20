@@ -17,20 +17,16 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore
-        with:
-          working-directory: src
+        working-directory: src
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
-        with:
-          working-directory: src
+        working-directory: src
 
       - name: Pack
         run: dotnet pack --configuration Release --no-build --output nupkgs
-        with:
-          working-directory: src
+        working-directory: src
 
       - name: Publish to NuGet
         run: dotnet nuget push nupkgs/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-        with:
-          working-directory: src
+        working-directory: src
