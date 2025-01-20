@@ -96,7 +96,7 @@ public class ClientWantsToEchoEventHandler : BaseEventHandler<ClientWantsToEchoD
 ```cs
 using System.Reflection;
 using Fleck;
-using lib;
+using WebSocketBoilerplate; //previously the namespace was also called "lib" (before version 2)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -138,7 +138,7 @@ public class ClientWantsToEcho : BaseEventHandler<ClientWantsToEchoDto>
     {
         // Step 5: profit
         socket.Send(dto.message);
-        socket.SendDto(new ServerSendsEchoDto() { message = dto.message}) //or using the SendDto which enforces extensions of BaseDto
+        socket.SendDto(new ServerSendsEchoDto() { message = dto.message}); //or using the SendDto which enforces extensions of BaseDto
         return Task.CompletedTask;
         
     }
