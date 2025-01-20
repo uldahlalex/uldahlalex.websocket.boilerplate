@@ -1,6 +1,6 @@
 using Fleck;
 
-namespace lib;
+namespace WebSocketBoilerplate;
 
 public interface IBaseEventFilter
 {

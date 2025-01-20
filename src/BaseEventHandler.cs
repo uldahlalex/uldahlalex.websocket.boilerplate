@@ -2,7 +2,7 @@
 using System.Text.Json;
 using Fleck;
 
-namespace lib;
+namespace WebSocketBoilerplate;
 
 public interface IBaseEventHandler<T> where T : BaseDto
 {

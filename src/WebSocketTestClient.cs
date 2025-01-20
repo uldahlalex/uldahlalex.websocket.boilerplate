@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Websocket.Client;
 
-namespace lib;
+namespace WebSocketBoilerplate;
 
 public class WebSocketTestClient
 {

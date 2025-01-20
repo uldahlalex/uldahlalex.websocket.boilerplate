@@ -8,11 +8,12 @@
 
         <!-- NuGet package metadata -->
         <PackageId>uldahlalex.websocket.boilerplate</PackageId>
-        <Version>1.9.0</Version>
+        <Version>2.0.1</Version>
         <Authors>Alex Uldahl Pedersen</Authors>
         <Company>Uldahl Technologies</Company>
         <Description>All the stuff we don't wanna write twice.</Description>
         <PackageId>uldahlalex.websocket.boilerplate</PackageId>
+        <RootNamespace>WebSocketBoilerplate</RootNamespace>
 
         <!-- NuGet options -->
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>

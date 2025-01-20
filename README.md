@@ -11,7 +11,7 @@ Link to Nuget gallery: https://www.nuget.org/packages/uldahlalex.websocket.boile
 ## Usage of event handler: Hello world (basic echo)
 
 ```csharp
-
+//
 using System.Reflection;
 using Fleck;
 using lib;

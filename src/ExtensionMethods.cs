@@ -4,7 +4,7 @@ using Fleck;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace lib;
+namespace WebSocketBoilerplate;
 
 public static class ExtensionMethods
 {
@@ -29,7 +29,7 @@ public static class ExtensionMethods
         return clientEventHandlers;
     }
     
-    public static IServiceCollection FindAndInjectClientEventHandlers(
+    public static IServiceCollection InjectEventHandlers(
         this IServiceCollection services,
         Assembly assemblyReference,
         ServiceLifetime? lifetime = ServiceLifetime.Scoped)
@@ -109,8 +109,8 @@ public static class ExtensionMethods
         }
     }
     
-    public static async Task InvokeClientEventHandler(this IApplicationBuilder app, 
-        IWebSocketConnection ws, string message, ServiceLifetime? lifetime = ServiceLifetime.Singleton)
+    public static async Task CallEventHandler(this IApplicationBuilder app, 
+        IWebSocketConnection ws, string message, ServiceLifetime? lifetime = ServiceLifetime.Scoped)
     {
         var dto = JsonSerializer.Deserialize<BaseDto>(message, new JsonSerializerOptions
         {

@@ -1,4 +1,4 @@
-namespace lib;
+namespace WebSocketBoilerplate;
 
 public interface IEventHandlersService
 {
