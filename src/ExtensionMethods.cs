@@ -8,6 +8,14 @@ namespace WebSocketBoilerplate;
 
 public static class ExtensionMethods
 {
+    /// <summary>
+    /// Legacy method to inject all event handlers in the assemblyReference.
+    /// Modern interpertation is to use InjectEventHandlers (using IServiceCollection instead of WebApplicationBuilder!)
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <param name="assemblyReference"></param>
+    /// <param name="lifetime"></param>
+    /// <returns></returns>
     public static HashSet<Type> FindAndInjectClientEventHandlers(
         this WebApplicationBuilder builder,
         Assembly assemblyReference,
@@ -28,7 +36,14 @@ public static class ExtensionMethods
 
         return clientEventHandlers;
     }
-    
+
+    /// <summary>
+    /// Use this method to inject all event handlers in the assemblyReference
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="assemblyReference"></param>
+    /// <param name="lifetime"></param>
+    /// <returns></returns>
     public static IServiceCollection InjectEventHandlers(
         this IServiceCollection services,
         Assembly assemblyReference,
@@ -42,7 +57,7 @@ public static class ExtensionMethods
             {
                 if (lifetime.Equals(ServiceLifetime.Singleton))
                     services.AddSingleton(type);
-                if(lifetime.Equals(ServiceLifetime.Transient))
+                if (lifetime.Equals(ServiceLifetime.Transient))
                     services.AddTransient(type);
                 else if (lifetime.Equals(ServiceLifetime.Scoped))
                     services.AddScoped(type);
@@ -56,6 +71,18 @@ public static class ExtensionMethods
     }
 
 
+    /// <summary>
+    /// Legacy method to invoke event handler based on "eventType".
+    /// Deliberately left for backwards compatibility. Modern interpertation is to use CallEventHandler.
+    /// (Deliberately uses duplicated code to avoid breaking changes)
+    /// </summary>
+    /// <param name="app"></param>
+    /// <param name="types"></param>
+    /// <param name="ws"></param>
+    /// <param name="message"></param>
+    /// <param name="lifetime"></param>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="InvalidOperationException"></exception>
     public static async Task InvokeClientEventHandler(this WebApplication app, HashSet<Type> types,
         IWebSocketConnection ws, string message, ServiceLifetime? lifetime = ServiceLifetime.Singleton)
     {
@@ -108,8 +135,17 @@ public static class ExtensionMethods
             await clientEventServiceClass.InvokeHandle(message, ws);
         }
     }
-    
-    public static async Task CallEventHandler(this IApplicationBuilder app, 
+
+    /// <summary>
+    /// Use this method to call the event handler when receiving a message from the client containing "eventType"
+    /// </summary>
+    /// <param name="app"></param>
+    /// <param name="ws"></param>
+    /// <param name="message"></param>
+    /// <param name="lifetime"></param>
+    /// <exception cref="ArgumentException"></exception>
+    /// <exception cref="InvalidOperationException"></exception>
+    public static async Task CallEventHandler(this IApplicationBuilder app,
         IWebSocketConnection ws, string message, ServiceLifetime? lifetime = ServiceLifetime.Scoped)
     {
         var dto = JsonSerializer.Deserialize<BaseDto>(message, new JsonSerializerOptions
@@ -122,9 +158,10 @@ public static class ExtensionMethods
             : dto.eventType;
 
         var eventHandlersService = app.ApplicationServices.GetRequiredService<IEventHandlersService>();
-        var handlerType = eventHandlersService.EventHandlers.FirstOrDefault(t => t.Name.Equals(eventType, StringComparison.OrdinalIgnoreCase) ||
-                                                    t.Name.Equals(eventType + "Dto",
-                                                        StringComparison.OrdinalIgnoreCase));
+        var handlerType = eventHandlersService.EventHandlers.FirstOrDefault(t =>
+            t.Name.Equals(eventType, StringComparison.OrdinalIgnoreCase) ||
+            t.Name.Equals(eventType + "Dto",
+                StringComparison.OrdinalIgnoreCase));
 
         if (handlerType == null)
         {
@@ -162,8 +199,20 @@ public static class ExtensionMethods
         }
     }
 
-    public static void SendDto<T>(this IWebSocketConnection websocketConnection, T dto, bool enforceCamelCase = false) where T : BaseDto
+    /// <summary>
+    /// Serializes to JSON and camelcases json keys before sending the message
+    /// </summary>
+    /// <param name="websocketConnection"></param>
+    /// <param name="dto"></param>
+    /// <param name="enforceCamelCase"></param>
+    /// <typeparam name="T"></typeparam>
+    public static void SendDto<T>(this IWebSocketConnection websocketConnection, T dto, bool enforceCamelCase = false)
+        where T : BaseDto
     {
-        websocketConnection.Send(JsonSerializer.Serialize(dto));
+        var serializerOptions = new JsonSerializerOptions()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase //almost every web framework assumes the json keys are camelcased
+        };
+        websocketConnection.Send(JsonSerializer.Serialize(dto, serializerOptions));
     }
 }

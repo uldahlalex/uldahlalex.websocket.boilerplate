@@ -8,6 +8,9 @@ public interface IBaseEventFilter
 
 }
 
+/// <summary>
+/// Use this attribute to trigger certain events before the event handler is called. (pre-action)
+/// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public abstract class BaseEventFilter : Attribute, IBaseEventFilter
 {
