@@ -14,4 +14,5 @@ public class BaseDto
     }
 
     public string eventType { get; set; }
+    public string requestId { get; set; }
 }

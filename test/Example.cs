@@ -6,13 +6,15 @@ namespace test;
 
 public static class Example
 {
+    public static List<IWebSocketConnection> ClientConnections { get; set; } = new List<IWebSocketConnection>() { };
+
     public static void Main()
     {
         var builder = WebApplication.CreateBuilder();
         builder.CreateWebSocketApi();
 
         var app = builder.Build();
-        
+
         app.StartWebSocketApi();
         
         app.Run();
@@ -27,23 +29,28 @@ public static class Example
     
     public static WebApplication StartWebSocketApi(this WebApplication app)
     {
+        var logger = LoggerFactory.Create(conf => { })
+            .CreateLogger("Example logger");
         var server = new WebSocketServer("ws://0.0.0.0:8181");
         server.Start(socket =>
         {
-            socket.OnOpen = () => Console.WriteLine("Open!");
-            socket.OnClose = () => Console.WriteLine("Close!");
-            socket.OnMessage = async message =>
+            socket.OnOpen = () => ClientConnections.Add(socket);
+            socket.OnClose = () => ClientConnections = ClientConnections.Where(c => c.ConnectionInfo.Id != socket.ConnectionInfo.Id).ToList();
+            socket.OnMessage = message =>
             {
-                try
+                Task.Run(async () =>
                 {
-                    //STEP 2: ADD THIS LINE TO INVOKE THE EVENT HANDLER WHEN RECEIVING A MESSAGE
-                    await app.CallEventHandler(socket, message); 
-                }
-                catch (Exception e)
-                {
-                    // trigger some global error handler to not ruin your life
-                }
+                    try
+                    {
+                        await app.CallEventHandler(socket, message);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, "Error handling message: {Error}", e.Message);
 
+                        socket.SendDto(new ServerSendsErrorMessageDto { Error = e.Message });
+                    }
+                });
             };
         });
         return app;
@@ -71,4 +78,8 @@ public class ClientWantsToEchoEventHandler : BaseEventHandler<ClientWantsToEchoD
         socket.SendDto(echoDto);
         return Task.CompletedTask;
     }
+}
+public class ServerSendsErrorMessageDto : BaseDto
+{
+    public string Error { get; set; }
 }
