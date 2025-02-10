@@ -4,142 +4,150 @@ using Websocket.Client;
 
 namespace WebSocketBoilerplate;
 
+/// <summary>
+/// A WebSocket client wrapper that handles DTO-based message exchange
+/// </summary>
 public class WsRequestClient
 {
-    public readonly WebsocketClient Client;
-    public readonly List<BaseDto> ReceivedMessages = new();
-   private readonly Assembly[] _assemblies;
+    private readonly WebsocketClient _client;
+    private readonly List<BaseDto> _receivedMessages = new();
+    private readonly Assembly[] _assemblies;
+    private static readonly JsonSerializerOptions DefaultSerializerOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     /// <summary>
-    /// Defaults to ws://localhost:8181 if no other url string is specified
+    /// Initializes a new WebSocket client with DTO type resolution capabilities
     /// </summary>
-    /// <param name="url"></param>
-    /// <param name="assemblies">Assemblies containing the DTO types</param>
-    public WsRequestClient(string? url = "ws://localhost:8181", params Assembly[] assemblies)
+    /// <param name="assemblies">Assemblies containing the DTO types. Must include assemblies for both request and response DTOs</param>
+    /// <param name="url">WebSocket server URL. Defaults to ws://localhost:8181</param>
+    public WsRequestClient(Assembly[] assemblies, string? url = "ws://localhost:8181")
     {
-        _assemblies = assemblies.Length > 0 
-            ? assemblies 
-            : new[] { Assembly.GetExecutingAssembly() };
+        _assemblies = assemblies.Length > 0 ? assemblies : new[] { Assembly.GetExecutingAssembly() };
+        _client = new WebsocketClient(new Uri(url ?? "ws://localhost:8181"));
 
-        Client = new WebsocketClient(new Uri(url ?? "ws://localhost:8181"));
-
-        Client.MessageReceived.Subscribe(msg =>
-        {
-            try 
-            {
-                var baseDto = JsonSerializer.Deserialize<BaseDto>(msg.Text, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-                if (baseDto == null) return;
-
-                var eventType = baseDto.eventType.EndsWith("Dto", StringComparison.OrdinalIgnoreCase)
-                    ? baseDto.eventType
-                    : baseDto.eventType + "Dto";
-
-                // Search for the type only in the provided assemblies
-                var dtoType = _assemblies
-                    .SelectMany(a => a.GetTypes())
-                    .FirstOrDefault(t => t.Name.Equals(eventType, StringComparison.OrdinalIgnoreCase));
-
-                if (dtoType == null)
-                {
-                    Console.WriteLine($"Could not find type for event: {eventType}");
-                    return;
-                }
-
-                var fullDto = JsonSerializer.Deserialize(msg.Text, dtoType, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) as BaseDto;
-
-                if (fullDto != null)
-                {
-                    lock (ReceivedMessages)
-                    {
-                        ReceivedMessages.Add(fullDto);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error processing message: {ex.Message}");
-                Console.WriteLine($"Message was: {msg.Text}");
-            }
-        });
+        _client.MessageReceived.Subscribe(HandleMessage);
     }
 
+    private void HandleMessage(ResponseMessage msg)
+    {
+        try 
+        {
+            var baseDto = JsonSerializer.Deserialize<BaseDto>(msg.Text, DefaultSerializerOptions);
+            if (baseDto == null) return;
 
+            var eventType = baseDto.eventType.EndsWith("Dto", StringComparison.OrdinalIgnoreCase)
+                ? baseDto.eventType
+                : baseDto.eventType + "Dto";
+
+            var dtoType = _assemblies
+                .SelectMany(a => a.GetTypes())
+                .FirstOrDefault(t => t.Name.Equals(eventType, StringComparison.OrdinalIgnoreCase));
+
+            if (dtoType == null) return;
+
+            var fullDto = JsonSerializer.Deserialize(msg.Text, dtoType, DefaultSerializerOptions) as BaseDto;
+            if (fullDto != null)
+            {
+                lock (_receivedMessages)
+                {
+                    _receivedMessages.Add(fullDto);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Silently fail on message processing errors
+        }
+    }
+
+    /// <summary>
+    /// Establishes the WebSocket connection
+    /// </summary>
+    /// <returns>The current instance for method chaining</returns>
+    /// <exception cref="Exception">Thrown when connection fails</exception>
     public async Task<WsRequestClient> ConnectAsync()
     {
-        await Client.Start();
-        if (!Client.IsRunning) throw new Exception("Could not start client!");
-        return this;
-    }
-    
-    private void Send<T>(T dto) where T : BaseDto
-    {
-        var serialized = JsonSerializer.Serialize(dto, new JsonSerializerOptions()
+        try
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
-        Client.Send(serialized);
+            _client.ReconnectTimeout = null;
+            await _client.Start();
+            
+            if (!_client.IsRunning)
+                throw new Exception("WebSocket client failed to start");
+
+            return this;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to connect: {ex.Message}", ex);
+        }
     }
 
     /// <summary>
-    /// For sending a message without expecing a response
+    /// Sends a message without expecting a response
     /// </summary>
-    /// <param name="sendDto"></param>
-    /// <typeparam name="T"></typeparam>
-    public async Task SendMessage<T>(T sendDto) where T : BaseDto
+    /// <param name="dto">The DTO to send</param>
+    /// <typeparam name="T">Type of the DTO, must inherit from BaseDto</typeparam>
+    public Task SendMessage<T>(T dto) where T : BaseDto
     {
-        Send(sendDto);
+        _client.Send(JsonSerializer.Serialize(dto, DefaultSerializerOptions));
+        return Task.CompletedTask;
     }
 
     /// <summary>
-    /// When a response is expected
+    /// Sends a message and waits for a response
     /// </summary>
-    /// <param name="sendDto"></param>
-    /// <param name="timeoutSeconds">Defaults to 7 seconds. Supply int param to change</param>
-    /// <typeparam name="T">The sending DTO type</typeparam>
-    /// <typeparam name="TR">The responding DTO type</typeparam>
-    /// <returns></returns>
-    /// <exception cref="TimeoutException"></exception>
+    /// <param name="sendDto">The DTO to send</param>
+    /// <param name="timeoutSeconds">Maximum time to wait for response</param>
+    /// <typeparam name="T">Type of the request DTO</typeparam>
+    /// <typeparam name="TR">Expected type of the response DTO</typeparam>
+    /// <returns>The response DTO</returns>
+    /// <exception cref="TimeoutException">Thrown when no response is received within the timeout period</exception>
     public async Task<TR> SendMessage<T, TR>(T sendDto, int timeoutSeconds = 7) 
         where T : BaseDto 
         where TR : BaseDto
     {
-        if (string.IsNullOrEmpty(sendDto.requestId))
-        {
-            sendDto.requestId = Guid.NewGuid().ToString();
-        }
-        
-        Send(sendDto);
+        sendDto.requestId ??= Guid.NewGuid().ToString();
+        await SendMessage(sendDto);
 
         var startTime = DateTime.UtcNow;
         while (DateTime.UtcNow - startTime < TimeSpan.FromSeconds(timeoutSeconds))
         {
-            lock (ReceivedMessages)
+            lock (_receivedMessages)
             {
                 var response = GetMessagesOfType<TR>()
                     .FirstOrDefault(msg => msg.requestId == sendDto.requestId);
+                
                 if (response != null)
                     return response;
             }
             await Task.Delay(100);
         }
 
-        throw new TimeoutException($"Did not receive expected response of type {typeof(TR).Name} with requestId {sendDto.requestId} within {timeoutSeconds} seconds");
+        throw new TimeoutException(
+            $"Did not receive expected response of type {typeof(TR).Name} " +
+            $"with requestId {sendDto.requestId} within {timeoutSeconds} seconds");
     }
 
-    public IEnumerable<T> GetMessagesOfType<T>() where T : BaseDto
+    private IEnumerable<T> GetMessagesOfType<T>() where T : BaseDto
     {
-        lock (ReceivedMessages)
+        lock (_receivedMessages)
         {
-            return ReceivedMessages
+            return _receivedMessages
                 .Where(msg => msg is T)
                 .Cast<T>()
                 .ToList();
         }
+    }
+
+    /// <summary>
+    /// Disposes the WebSocket client
+    /// </summary>
+    public void Dispose()
+    {
+        _client.Dispose();
     }
 }
