@@ -102,66 +102,68 @@ public class ServerSendsErrorMessageDto : BaseDto
 ```
 
 
+# WebSocket Request Client
 
-## WebSocket Request Client
-
-A simple WebSocket client for testing WebSocket APIs, with support for typed DTOs and request/response patterns.
+A WebSocket client wrapper that handles DTO-based message exchange. Designed for type-safe communication with WebSocket servers that follow a request/response pattern using DTOs.
 
 ## Features
-- Automatic request/response correlation using requestId
-- Type-safe message sending and receiving
-- Support for both fire-and-forget messages and request-response patterns
-- Built-in timeout handling
-- Thread-safe message collection
+- Type-safe message handling
+- Automatic DTO type resolution from provided assemblies
+- Built-in request/response correlation using requestId
+- Support for fire-and-forget and request-response patterns
+- Configurable timeout handling
+- Thread-safe message processing
 
-## Installation
+## Usage
 
-Is automatically bundled in the same package as everything else.
-
-## Basic Usage
-
-### Connect to WebSocket Server
+### Initialization
 ```csharp
-// Defaults to ws://localhost:8181
-var client = new WsRequestClient();
-await client.ConnectAsync();
-
-// Or specify custom URL
-var client = new WsRequestClient("ws://localhost:1234");
-await client.ConnectAsync();
-```
-
-### Send Message Without Response
-```csharp
-await client.SendMessage(new BroadcastMessageDto //BroadcastMessageDto extends BaseDto 
-{ 
-    message = "Hello everyone!" 
-});
-```
-
-### Send Message With Expected Response
-```csharp
-var response = await client.SendMessage<LoginRequestDto, LoginResponseDto>( //Both generics extending BaseDto
-    new LoginRequestDto 
-    { 
-        username = "test",
-        password = "password123"
+// Initialize with assemblies containing your DTOs
+var client = new WsRequestClient(
+    new[] { 
+        typeof(RequestDto).Assembly,  // Assembly containing request DTOs. If there are dto's in other assemblies add these aswell
     }
+);
+
+// Optional: Specify custom WebSocket URL (defaults to ws://localhost:8181)
+var client = new WsRequestClient(
+    assemblies: new[] { typeof(RequestDto).Assembly },
+    url: "ws://custom-server:1234"
 );
 ```
 
-### Custom Timeout
+### Connection
 ```csharp
-// Wait up to 15 seconds for response
-var response = await client.SendMessage<LoginRequestDto, LoginResponseDto>( //Both generics extending BaseDto
-    new LoginRequestDto { username = "test" },
+await client.ConnectAsync();
+```
+
+### Fire-and-Forget Messages
+```csharp
+var notification = new NotificationDto //this class must extend BaseDto
+{ 
+    eventType = "Notification",
+    message = "Hello!" 
+};
+await client.SendMessage(notification);
+```
+
+### Request-Response Pattern
+```csharp
+// Send request and await response
+var request = new EchoRequestDto
+{ 
+    message = "Hello server!" 
+};
+var response = await client.SendMessage<EchoRequestDto, EchoResponseDto>(request); //the generics must extend BaseDto
+
+// With custom timeout
+var response = await client.SendMessage<EchoRequestDto, EchoResponseDto>(
+    request, 
     timeoutSeconds: 15
 );
 ```
 
-## Testing Examples
-
-Here's how to use the client in xUnit tests:
+## Testing Example with xUnit
 
 ```csharp
 public class WebSocketTests : IAsyncLifetime
@@ -170,7 +172,10 @@ public class WebSocketTests : IAsyncLifetime
 
     public WebSocketTests()
     {
-        _client = new WsRequestClient();
+        _client = new WsRequestClient(new[] 
+        { 
+            typeof(EchoRequestDto).Assembly 
+        });
     }
 
     public async Task InitializeAsync()
@@ -180,63 +185,28 @@ public class WebSocketTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _client.Client.Stop();
-        _client.Client.Dispose();
+        _client.Dispose();
     }
 
     [Fact]
-    public async Task LoginRequest_ShouldReceiveSuccessResponse()
+    public async Task Echo_ShouldReturnSameMessage()
     {
         // Arrange
-        var loginRequest = new LoginRequestDto
+        var request = new EchoRequestDto
         {
-            username = "testUser",
-            password = "testPass"
+            message = "Test message"
         };
 
         // Act
-        var response = await _client.SendMessage<LoginRequestDto, LoginResponseDto>(loginRequest);
+        var response = await _client.SendMessage<EchoRequestDto, EchoResponseDto>(request);
 
         // Assert
-        Assert.NotNull(response);
-        Assert.Equal(loginRequest.requestId, response.requestId);
-        Assert.True(response.success);
-    }
-
-    [Fact]
-    public async Task BroadcastMessage_ShouldBeReceivedByOtherClients()
-    {
-        // Arrange
-        var broadcastMessage = new BroadcastMessageDto
-        {
-            message = "Test broadcast"
-        };
-
-        // Act
-        await _client.SendMessage(broadcastMessage);
-        await Task.Delay(1000); // Allow time for message processing
-
-        // Assert
-        var receivedMessages = _client.GetMessagesOfType<BroadcastMessageDto>();
-        Assert.Contains(receivedMessages, msg => msg.message == "Test broadcast");
-    }
-
-    [Fact]
-    public async Task InvalidRequest_ShouldTimeoutAfterSpecifiedDuration()
-    {
-        // Arrange
-        var invalidRequest = new InvalidRequestDto();
-
-        // Act & Assert
-        await Assert.ThrowsAsync<TimeoutException>(() =>
-            _client.SendMessage<InvalidRequestDto, ResponseDto>(
-                invalidRequest,
-                timeoutSeconds: 2
-            )
-        );
+        Assert.Equal(request.message, response.message);
+        Assert.Equal(request.requestId, response.requestId);
     }
 }
 ```
+
 
 
 
