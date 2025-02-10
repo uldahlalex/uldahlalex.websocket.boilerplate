@@ -102,7 +102,148 @@ public class ServerSendsErrorMessageDto : BaseDto
 ```
 
 
-### Legacy version: (before 2.0 this was preferred syntax):
+
+## WebSocket Request Client
+
+A simple WebSocket client for testing WebSocket APIs, with support for typed DTOs and request/response patterns.
+
+## Features
+- Automatic request/response correlation using requestId
+- Type-safe message sending and receiving
+- Support for both fire-and-forget messages and request-response patterns
+- Built-in timeout handling
+- Thread-safe message collection
+
+## Installation
+
+Is automatically bundled in the same package as everything else.
+
+## Basic Usage
+
+### Connect to WebSocket Server
+```csharp
+// Defaults to ws://localhost:8181
+var client = new WsRequestClient();
+await client.ConnectAsync();
+
+// Or specify custom URL
+var client = new WsRequestClient("ws://localhost:1234");
+await client.ConnectAsync();
+```
+
+### Send Message Without Response
+```csharp
+await client.SendMessage(new BroadcastMessageDto //BroadcastMessageDto extends BaseDto 
+{ 
+    message = "Hello everyone!" 
+});
+```
+
+### Send Message With Expected Response
+```csharp
+var response = await client.SendMessage<LoginRequestDto, LoginResponseDto>( //Both generics extending BaseDto
+    new LoginRequestDto 
+    { 
+        username = "test",
+        password = "password123"
+    }
+);
+```
+
+### Custom Timeout
+```csharp
+// Wait up to 15 seconds for response
+var response = await client.SendMessage<LoginRequestDto, LoginResponseDto>( //Both generics extending BaseDto
+    new LoginRequestDto { username = "test" },
+    timeoutSeconds: 15
+);
+```
+
+## Testing Examples
+
+Here's how to use the client in xUnit tests:
+
+```csharp
+public class WebSocketTests : IAsyncLifetime
+{
+    private WsRequestClient _client;
+
+    public WebSocketTests()
+    {
+        _client = new WsRequestClient();
+    }
+
+    public async Task InitializeAsync()
+    {
+        await _client.ConnectAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _client.Client.Stop();
+        _client.Client.Dispose();
+    }
+
+    [Fact]
+    public async Task LoginRequest_ShouldReceiveSuccessResponse()
+    {
+        // Arrange
+        var loginRequest = new LoginRequestDto
+        {
+            username = "testUser",
+            password = "testPass"
+        };
+
+        // Act
+        var response = await _client.SendMessage<LoginRequestDto, LoginResponseDto>(loginRequest);
+
+        // Assert
+        Assert.NotNull(response);
+        Assert.Equal(loginRequest.requestId, response.requestId);
+        Assert.True(response.success);
+    }
+
+    [Fact]
+    public async Task BroadcastMessage_ShouldBeReceivedByOtherClients()
+    {
+        // Arrange
+        var broadcastMessage = new BroadcastMessageDto
+        {
+            message = "Test broadcast"
+        };
+
+        // Act
+        await _client.SendMessage(broadcastMessage);
+        await Task.Delay(1000); // Allow time for message processing
+
+        // Assert
+        var receivedMessages = _client.GetMessagesOfType<BroadcastMessageDto>();
+        Assert.Contains(receivedMessages, msg => msg.message == "Test broadcast");
+    }
+
+    [Fact]
+    public async Task InvalidRequest_ShouldTimeoutAfterSpecifiedDuration()
+    {
+        // Arrange
+        var invalidRequest = new InvalidRequestDto();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<TimeoutException>(() =>
+            _client.SendMessage<InvalidRequestDto, ResponseDto>(
+                invalidRequest,
+                timeoutSeconds: 2
+            )
+        );
+    }
+}
+```
+
+
+
+
+
+
+### Legacy version of event handlers: (before 2.0 this was preferred syntax):
 
 ```cs
 using System.Reflection;
@@ -196,7 +337,7 @@ public class ClientWantsToEnterRoom(
 }
 ```
 
-# Basic usage of WebSocketTestClient
+# Basic usage of WebSocketTestClient (Legacy)
 ```csharp
 [TestFixture]
 public class Tests
