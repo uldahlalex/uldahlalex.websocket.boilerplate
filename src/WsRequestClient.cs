@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Websocket.Client;
 
@@ -7,33 +8,67 @@ public class WsRequestClient
 {
     public readonly WebsocketClient Client;
     public readonly List<BaseDto> ReceivedMessages = new();
+   private readonly Assembly[] _assemblies;
 
     /// <summary>
     /// Defaults to ws://localhost:8181 if no other url string is specified
     /// </summary>
     /// <param name="url"></param>
-    public WsRequestClient(string? url = "ws://localhost:8181")
+    /// <param name="assemblies">Assemblies containing the DTO types</param>
+    public WsRequestClient(string? url = "ws://localhost:8181", params Assembly[] assemblies)
     {
+        _assemblies = assemblies.Length > 0 
+            ? assemblies 
+            : new[] { Assembly.GetExecutingAssembly() };
 
-            Client = new WebsocketClient(new Uri(url ?? "ws://localhost:8181"));
+        Client = new WebsocketClient(new Uri(url ?? "ws://localhost:8181"));
 
         Client.MessageReceived.Subscribe(msg =>
         {
-            var baseDto = JsonSerializer.Deserialize<BaseDto>(msg.Text);
-            if (baseDto == null) return;
-
-            var typeName = baseDto.eventType + (baseDto.eventType.EndsWith("Dto") ? "" : "Dto");
-            var fullTypeName = $"WebSocketBoilerplate.{typeName}";
-            
-            var dtoType = Type.GetType(fullTypeName) ?? typeof(BaseDto);
-            var fullDto = JsonSerializer.Deserialize(msg.Text, dtoType) as BaseDto;
-            
-            lock (ReceivedMessages)
+            try 
             {
-                ReceivedMessages.Add(fullDto);
+                var baseDto = JsonSerializer.Deserialize<BaseDto>(msg.Text, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                if (baseDto == null) return;
+
+                var eventType = baseDto.eventType.EndsWith("Dto", StringComparison.OrdinalIgnoreCase)
+                    ? baseDto.eventType
+                    : baseDto.eventType + "Dto";
+
+                // Search for the type only in the provided assemblies
+                var dtoType = _assemblies
+                    .SelectMany(a => a.GetTypes())
+                    .FirstOrDefault(t => t.Name.Equals(eventType, StringComparison.OrdinalIgnoreCase));
+
+                if (dtoType == null)
+                {
+                    Console.WriteLine($"Could not find type for event: {eventType}");
+                    return;
+                }
+
+                var fullDto = JsonSerializer.Deserialize(msg.Text, dtoType, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) as BaseDto;
+
+                if (fullDto != null)
+                {
+                    lock (ReceivedMessages)
+                    {
+                        ReceivedMessages.Add(fullDto);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing message: {ex.Message}");
+                Console.WriteLine($"Message was: {msg.Text}");
             }
         });
     }
+
 
     public async Task<WsRequestClient> ConnectAsync()
     {
