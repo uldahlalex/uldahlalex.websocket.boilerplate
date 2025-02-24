@@ -12,6 +12,7 @@ public class WsRequestClient
 {
     private readonly WebsocketClient _client;
     public readonly List<BaseDto> ReceivedMessages = new();
+    public readonly List<string> ReceivedMessagesAsJsonStrings = new();
     private readonly Assembly[] _assemblies;
     private static readonly JsonSerializerOptions DefaultSerializerOptions = new()
     {
@@ -47,7 +48,7 @@ public class WsRequestClient
                 .FirstOrDefault(t => t.Name.Equals(eventType, StringComparison.OrdinalIgnoreCase));
 
             if (dtoType == null) return;
-
+            ReceivedMessagesAsJsonStrings.Add(msg.Text);
             var fullDto = JsonSerializer.Deserialize(msg.Text, dtoType, DefaultSerializerOptions) as BaseDto;
             if (fullDto != null)
             {
@@ -132,7 +133,7 @@ public class WsRequestClient
             $"with requestId {sendDto.requestId} within {timeoutSeconds} seconds");
     }
 
-    private IEnumerable<T> GetMessagesOfType<T>() where T : BaseDto
+    public IEnumerable<T> GetMessagesOfType<T>() where T : BaseDto
     {
         lock (ReceivedMessages)
         {
