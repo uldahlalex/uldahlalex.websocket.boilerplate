@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Websocket.Client;
 
 namespace WebSocketBoilerplate;
@@ -10,12 +11,13 @@ namespace WebSocketBoilerplate;
 public class WsRequestClient
 {
     private readonly WebsocketClient _client;
-    private readonly List<BaseDto> _receivedMessages = new();
+    public readonly List<BaseDto> ReceivedMessages = new();
     private readonly Assembly[] _assemblies;
     private static readonly JsonSerializerOptions DefaultSerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        ReferenceHandler = ReferenceHandler.IgnoreCycles
     };
 
     /// <summary>
@@ -38,9 +40,7 @@ public class WsRequestClient
             var baseDto = JsonSerializer.Deserialize<BaseDto>(msg.Text, DefaultSerializerOptions);
             if (baseDto == null) return;
 
-            var eventType = baseDto.eventType.EndsWith("Dto", StringComparison.OrdinalIgnoreCase)
-                ? baseDto.eventType
-                : baseDto.eventType + "Dto";
+            string eventType = baseDto.eventType.Replace("Dto", "", StringComparison.OrdinalIgnoreCase) + "Dto";
 
             var dtoType = _assemblies
                 .SelectMany(a => a.GetTypes())
@@ -51,15 +51,15 @@ public class WsRequestClient
             var fullDto = JsonSerializer.Deserialize(msg.Text, dtoType, DefaultSerializerOptions) as BaseDto;
             if (fullDto != null)
             {
-                lock (_receivedMessages)
+                lock (ReceivedMessages)
                 {
-                    _receivedMessages.Add(fullDto);
+                    ReceivedMessages.Add(fullDto);
                 }
             }
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            // Silently fail on message processing errors
+            Console.WriteLine(e.Message);
         }
     }
 
@@ -116,7 +116,7 @@ public class WsRequestClient
         var startTime = DateTime.UtcNow;
         while (DateTime.UtcNow - startTime < TimeSpan.FromSeconds(timeoutSeconds))
         {
-            lock (_receivedMessages)
+            lock (ReceivedMessages)
             {
                 var response = GetMessagesOfType<TR>()
                     .FirstOrDefault(msg => msg.requestId == sendDto.requestId);
@@ -134,9 +134,9 @@ public class WsRequestClient
 
     private IEnumerable<T> GetMessagesOfType<T>() where T : BaseDto
     {
-        lock (_receivedMessages)
+        lock (ReceivedMessages)
         {
-            return _receivedMessages
+            return ReceivedMessages
                 .Where(msg => msg is T)
                 .Cast<T>()
                 .ToList();
